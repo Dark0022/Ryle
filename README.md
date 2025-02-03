@@ -31,13 +31,13 @@ Installation
 2. Create a virtual environment and activate it:
     - On Windows:
       
-   python -m venv venv
-   .\venv\Scripts\activate
+  - python -m venv venv
+  - .\venv\Scripts\activate
       
     - On macOS/Linux:
       
-   python3 -m venv venv
-   source venv/bin/activate
+     - python3 -m venv venv
+     - source venv/bin/activate
       
 
 3. Install the required dependencies:
@@ -58,10 +58,10 @@ Install FFmpeg from https://ffmpeg.org/download.html if you haven't already.
 
 Commands
 
-- !play <name of your song> : Plays the music you provided the name of
+- !play (name_of_the_song) : Plays the music you provided the name of
 - !join: Makes the bot join the voice channel.
 - !leave: Makes the bot leave the voice channel.
-- !play <url>: Plays the music from the provided YouTube URL.
+- !play (url): Plays the music from the provided YouTube URL.
 - !pause: Pauses the music.
 - !resume: Resumes the music.
 - !stop: Stops the music.
