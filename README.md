@@ -31,8 +31,8 @@ Installation
 2. Create a virtual environment and activate it:
     - On Windows:
       
-  - python -m venv venv
-  - .\venv\Scripts\activate
+      - python -m venv venv
+      - .\venv\Scripts\activate
       
     - On macOS/Linux:
       
