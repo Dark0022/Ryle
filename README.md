@@ -31,13 +31,13 @@ Installation
 2. Create a virtual environment and activate it:
     - On Windows:
       
-      python -m venv venv
-      .\venv\Scripts\activate
+   python -m venv venv
+   .\venv\Scripts\activate
       
     - On macOS/Linux:
       
-      python3 -m venv venv
-      source venv/bin/activate
+   python3 -m venv venv
+   source venv/bin/activate
       
 
 3. Install the required dependencies:
