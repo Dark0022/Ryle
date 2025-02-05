@@ -1,7 +1,7 @@
 import nextcord
 from nextcord.ext import commands
 import yt_dlp as youtube_dl
-
+import asyncio
 
 youtube_dl.utils.bug_reports_message = lambda: ''
 
@@ -13,17 +13,16 @@ ytdl_format_options = {
     'nocheckcertificate': True,
     'ignoreerrors': False,
     'logtostderr': False,
-    'quiet': True, 
+    'quiet': True,
     'no_warnings': True,
     'default_search': 'auto',
-    'source_address': '0.0.0.0'  
+    'source_address': '0.0.0.0'
 }
 
 ffmpeg_options = {
     'options': '-vn -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -ar 48000 -b:a 512k',
     'executable': r'G:\ffmpeg\bin\ffmpeg.exe'
 }
-
 
 ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
 
@@ -38,99 +37,111 @@ class YTDLSource(nextcord.PCMVolumeTransformer):
     async def from_url(cls, url, *, loop=None, stream=False):
         loop = loop or asyncio.get_event_loop()
         data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=not stream))
-
+        
         if 'entries' in data:
-            # take first item from a playlist
             data = data['entries'][0]
-
+            
         filename = data['url'] if stream else ytdl.prepare_filename(data)
         return cls(nextcord.FFmpegPCMAudio(filename, **ffmpeg_options), data=data)
 
 intents = nextcord.Intents.default()
 intents.message_content = True
+intents.voice_states = True  # Required for voice state updates
 
 bot = commands.Bot(command_prefix='!', intents=intents)
 
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user.name}')
+    await bot.sync_all_application_commands()  # Sync slash commands globally
 
 @bot.event
 async def on_voice_state_update(member, before, after):
-    if before.channel and not after.channel:  # If the bot leaves the voice channel
-        if not any(vc.is_playing() for vc in bot.voice_clients):  # Check if there’s no music playing
-            await bot.close()  # Close the bot to stop any errors
+    if before.channel and not after.channel:
+        if not any(vc.is_playing() for vc in bot.voice_clients):
+            await bot.close()
 
-
-@bot.command(name='join', help='Tells the bot to join the voice channel')
-async def join(ctx):
-    if not ctx.message.author.voice:
-        await ctx.send(f"{ctx.message.author.name} is not connected to a voice channel")
-        return
-    else:
-        channel = ctx.message.author.voice.channel
+# Slash Commands Below ⚡
+@bot.slash_command(description="Join your voice channel")
+async def join(interaction: nextcord.Interaction):
+    """Join the user's voice channel"""
+    if not interaction.user.voice:
+        return await interaction.response.send_message("⚠️ You're not in a voice channel!", ephemeral=True)
+    
+    channel = interaction.user.voice.channel
     await channel.connect()
+    await interaction.response.send_message(f"✅ Joined {channel.mention}")
 
-@bot.command(name='leave', help='To make the bot leave the voice channel')
-async def leave(ctx):
-    voice_client = ctx.message.guild.voice_client
-    if voice_client.is_connected():
-        await voice_client.disconnect()
-    else:
-        await ctx.send("The bot is not connected to a voice channel.")
+@bot.slash_command(description="Leave the voice channel")
+async def leave(interaction: nextcord.Interaction):
+    """Leave the current voice channel"""
+    voice_client = interaction.guild.voice_client
+    if not voice_client:
+        return await interaction.response.send_message("⚠️ I'm not in a voice channel!", ephemeral=True)
+    
+    await voice_client.disconnect()
+    await interaction.response.send_message("✅ Left the voice channel")
 
-@bot.command(name='play', help='To play song')
-async def play(ctx, *, url):
-    async with ctx.typing():
-        player = await YTDLSource.from_url(url, loop=bot.loop, stream=True)
-        ctx.voice_client.play(player, after=lambda e: print('Player error: %s' % e) if e else None)
-    await ctx.send(f'Now playing: {player.title}')
-
-@bot.command(name='pause', help='This command pauses the song')
-async def pause(ctx):
-    voice_client = ctx.message.guild.voice_client
-    if voice_client.is_playing():
-        await ctx.send('Pausing...')
-        voice_client.pause()
-    else:
-        await ctx.send("Currently no audio is playing.")
-
-@bot.command(name='resume', help='Resumes the song')
-async def resume(ctx):
-    voice_client = ctx.message.guild.voice_client
-    if voice_client.is_paused():
-        await ctx.send('Resuming...')
-        voice_client.resume()
-    else:
-        await ctx.send("The audio is not paused.")
-
-@bot.command(name='stop', help='Stops the song')
-async def stop(ctx):
-    voice_client = ctx.message.guild.voice_client
-    if voice_client.is_playing():
-        await ctx.send('Stopping...')
-        voice_client.stop()
-    else:
-        await ctx.send("Currently no audio is playing.")
-
-@bot.command(name='volume', help='Changes the volume of the bot')
-async def volume(ctx, volume: int):
-    if ctx.voice_client is None:
-        return await ctx.send("Not connected to a voice channel.")
-
-    ctx.voice_client.source.volume = volume / 100
-    await ctx.send(f"Changed volume to {volume}%")
-
-@play.before_invoke
-@join.before_invoke
-async def ensure_voice(ctx):
-    if ctx.voice_client is None:
-        if ctx.author.voice:
-            await ctx.author.voice.channel.connect()
+@bot.slash_command(description="Play a song from YouTube")
+async def play(interaction: nextcord.Interaction, query: str):
+    """Play audio from a YouTube URL"""
+    await interaction.response.defer()  # Acknowledge the interaction first
+    
+    # Ensure the bot is in a voice channel
+    if not interaction.guild.voice_client:
+        if interaction.user.voice:
+            await interaction.user.voice.channel.connect()
         else:
-            await ctx.send("You are not connected to a voice channel.")
-            raise commands.CommandError("Author not connected to a voice channel.")
-    elif ctx.voice_client.is_playing():
-        ctx.voice_client.stop()
+            return await interaction.followup.send("⚠️ You must be in a voice channel!", ephemeral=True)
+    
+    # Stop current track if playing
+    voice_client = interaction.guild.voice_client
+    if voice_client.is_playing():
+        voice_client.stop()
+    
+    # Play new track
+    player = await YTDLSource.from_url(query, loop=bot.loop, stream=True)
+    voice_client.play(player, after=lambda e: print(f'Error: {e}') if e else None)
+    await interaction.followup.send(f"🎶 Now playing: **{player.title}**")
 
-bot.run("YOUR APP TOKEN")
+@bot.slash_command(description="Pause the current song")
+async def pause(interaction: nextcord.Interaction):
+    """Pause playback"""
+    voice_client = interaction.guild.voice_client
+    if not voice_client or not voice_client.is_playing():
+        return await interaction.response.send_message("⚠️ Nothing is playing!", ephemeral=True)
+    
+    voice_client.pause()
+    await interaction.response.send_message("⏸️ Playback paused")
+
+@bot.slash_command(description="Resume playback")
+async def resume(interaction: nextcord.Interaction):
+    """Resume paused playback"""
+    voice_client = interaction.guild.voice_client
+    if not voice_client or not voice_client.is_paused():
+        return await interaction.response.send_message("⚠️ Playback isn't paused!", ephemeral=True)
+    
+    voice_client.resume()
+    await interaction.response.send_message("▶️ Playback resumed")
+
+@bot.slash_command(description="Stop playback and clear queue")
+async def stop(interaction: nextcord.Interaction):
+    """Stop the music"""
+    voice_client = interaction.guild.voice_client
+    if not voice_client or not voice_client.is_playing():
+        return await interaction.response.send_message("⚠️ Nothing is playing!", ephemeral=True)
+    
+    voice_client.stop()
+    await interaction.response.send_message("⏹️ Playback stopped")
+
+@bot.slash_command(description="Adjust volume (0-200%)")
+async def volume(interaction: nextcord.Interaction, level: int = nextcord.SlashOption(description="Volume percentage", min_value=0, max_value=200)):
+    """Change playback volume"""
+    voice_client = interaction.guild.voice_client
+    if not voice_client:
+        return await interaction.response.send_message("⚠️ Not in a voice channel!", ephemeral=True)
+    
+    voice_client.source.volume = level / 100
+    await interaction.response.send_message(f"🔊 Volume set to **{level}%**")
+
+bot.run("YOUR_BOT_TOKEN")
