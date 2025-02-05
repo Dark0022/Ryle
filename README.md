@@ -58,14 +58,14 @@ Install FFmpeg from https://ffmpeg.org/download.html if you haven't already.
 
 Commands
 
-- !play (name_of_the_song) : Plays the music you provided the name of
-- !join: Makes the bot join the voice channel.
-- !leave: Makes the bot leave the voice channel.
-- !play (url): Plays the music from the provided YouTube URL.
-- !pause: Pauses the music.
-- !resume: Resumes the music.
-- !stop: Stops the music.
-- !volume <volume>: Adjusts the bot's volume (0 to 100).
+- /play (name_of_the_song) : Plays the music you provided the name of
+- /join: Makes the bot join the voice channel.
+- /leave: Makes the bot leave the voice channel.
+- /play (url): Plays the music from the provided YouTube URL.
+- /pause: Pauses the music.
+- /resume: Resumes the music.
+- /stop: Stops the music.
+- /volume <volume>: Adjusts the bot's volume (0 to 100).
 
 License
 
