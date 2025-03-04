@@ -2,8 +2,8 @@
 Music Bot for Discord
 
 This is a Discord bot built with 
-Nextcord (https://nextcord.readthedocs.io/en/stable/) and 
-yt-dlp (https://github.com/yt-dlp/yt-dlp) 
+Nextcord and 
+yt-dlp 
 that allows users to play music from YouTube in a Discord voice channel.
 
 Features
