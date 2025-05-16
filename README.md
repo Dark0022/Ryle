@@ -24,7 +24,7 @@ Installation
 
 1. Clone the repository:
     
-    git clone https://github.com/yourusername/music-bot.git
+    git clone https://github.com/yourusername/music-bot.git    
     cd music-bot
    
 
